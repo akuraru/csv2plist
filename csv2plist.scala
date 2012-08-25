@@ -10,12 +10,14 @@ import scala.io.Source
 object csv2plist {
   def main(args : Array[String]) : Unit = { 
     val (filename, hasTitleRow) = ArgumentCheck(args);
-    if(filename == "") {
-      println("no file")
+    if(filename == "") return;
+    
+    val file = new File( filename );
+    if(file.exists == false) {
+      println("No such file" + filename)
       return;
     }
-    
-    var reader = new CSVReader(new InputStreamReader(new FileInputStream( new File( filename ) ), "utf-8" ))
+    val reader = new CSVReader(new InputStreamReader(new FileInputStream( file ), "utf-8" ))
 
     val outputFilename = filename.replace(".csv",".plist");
     val fp_out = new PrintWriter(outputFilename, "utf-8");
