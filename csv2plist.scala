@@ -5,13 +5,17 @@ import java.io.InputStreamReader
 import java.io.FileInputStream
 import java.io.File
 import au.com.bytecode.opencsv.CSVReader
+import scala.io.Source
 
 object csv2plist {
   def main(args : Array[String]) : Unit = { 
     val (filename, hasTitleRow) = ArgumentCheck(args);
-    if(filename == "") return;
+    if(filename == "") {
+      println("no file")
+      return;
+    }
     
-    val reader = new CSVReader(new InputStreamReader(new FileInputStream( new File( filename ) ), "utf-8" ))
+    var reader = new CSVReader(new InputStreamReader(new FileInputStream( new File( filename ) ), "utf-8" ))
 
     val outputFilename = filename.replace(".csv",".plist");
     val fp_out = new PrintWriter(outputFilename, "utf-8");
@@ -30,12 +34,9 @@ object csv2plist {
         	case Nil => ""
         }
       };
-      fp_out.write("\t<dict>\n"); 
-      fp_out.write(f(values, 0));
-      fp_out.write("\t</dict>\n");  
+      fp_out.write("\t<dict>\n" + f(values, 0) + "\t</dict>\n");  
     }
-    fp_out.write("</array>\n");
-    fp_out.write("</plist>");
+    fp_out.write("</array>\n" + "</plist>");
     fp_out.close();
     
     println("Generated")
