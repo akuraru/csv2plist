@@ -8,7 +8,7 @@ import au.com.bytecode.opencsv.CSVReader
 
 object csv2plist {
   def main(args : Array[String]) : Unit = { 
-    val (filename, hasTitleRow) = ("contants.csv", true)//ArgumentCheck(args);
+    val (filename, hasTitleRow) = ("contants2.csv", true)//ArgumentCheck(args);
     if(filename == "") return;
     
     val reader = new CSVReader(new InputStreamReader(new FileInputStream( new File( filename ) ), "utf-8" ))
