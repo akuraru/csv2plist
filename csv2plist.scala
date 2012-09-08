@@ -40,40 +40,45 @@ object csv2plist {
   }
   def createBody(reader: CSVReader, hasTitleRow: Boolean, hasArray: Boolean): String = {
     if (hasArray == false) {
-      val keys = if (hasTitleRow) reader.readNext else Array[String]();
+      val first = reader.readNext;
+      val keys = if (hasTitleRow) first else { (0 to first.length - 1).map(x => "keyname" + x) }.toArray;
+      val firstCell = if (hasTitleRow) "" else createCell(first.toList, keys)
 
-      Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).map {
-        values =>
-          def g(i: Int): String = {
-            if (hasTitleRow) "\t\t<key>" + keys(i) + "</key>\n"
-            else "\t\t<key>keyname" + i + "</key>\n"
-          }
-          def f(l: List[String], i: Int): String = {
-            l match {
-              case h :: t => g(i) + "\t\t<string>" + h + "</string>\n" + f(t, i + 1)
-              case Nil => ""
-            }
-          };
-          "\t<dict>\n" + f(values, 0) + "\t</dict>\n"
+      firstCell + Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).map {
+        createCell(_, keys)
       }.fold("")(_ + _)
     } else {
-      val keys = reader.readNext;
+      val keys = reader.readNext.toArray;
       val values = Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).toList
-      def f(l : List[List[String]], i : Int):String = {
+      def f(l: List[List[String]], i: Int): String = {
         l match {
           case h :: t => {
             h match {
-              case h2 :: t2 :: _ => (if(i < h2.toInt)"\t\t<string>" + t2 + "</string>\n" else "\t</array>\n" + "\t<array>\n" + "\t\t<string>" + t2 + "</string>\n") + f(t, h2.toInt)  
+              case h2 :: t2 :: t3 =>
+                (if (i < h2.toInt)"" else "\t</array>\n" + "\t<array>\n") +
+                (if (hasTitleRow)
+                  "\t<dict>\n" + cell(h.tail, 1, keys) + "\t</dict>\n" + f(t, h2.toInt);
+                else
+                  "\t\t<string>" + t2 + "</string>\n" + f(t, h2.toInt))
               case _ => "" + f(t, i)
             }
           }
-          case Nil => "\t</array>\n"
+          case Nil => ""
         }
       }
-      "\t<array>\n" + f(values, -1)
+      "\t<array>\n" + f(values, -1) + "\t</array>\n"
     }
   }
 
+  def createCell(values: List[String], keys: Array[String]) = {
+    "\t<dict>\n" + cell(values, 0, keys) + "\t</dict>\n"
+  }
+  def cell(l: List[String], i: Int, keys: Array[String]): String = {
+    l match {
+      case h :: t => "\t\t<key>" + keys(i) + "</key>\n" + "\t\t<string>" + h + "</string>\n" + cell(t, i + 1, keys)
+      case Nil => ""
+    }
+  };
   def ArgumentCheck(args: Array[String]): (String, Boolean, Boolean) = {
     if (args.length == 1) {
       return (args(0), false, false);
