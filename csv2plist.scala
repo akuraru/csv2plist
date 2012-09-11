@@ -30,9 +30,7 @@ object csv2plist {
     fp_out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
       "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
       "<plist version=\"1.0\">\n" +
-      "<array>\n" +
       body +
-      "</array>\n" +
       "</plist>");
     fp_out.close();
 
@@ -44,38 +42,25 @@ object csv2plist {
       val keys = if (hasTitleRow) first else { (0 to first.length - 1).map(x => "keyname" + x) }.toArray;
       val firstCell = if (hasTitleRow) "" else createCell(first.toList, keys)
 
-      firstCell + Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).map {
+      "<array>\n" + firstCell + Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).map {
         createCell(_, keys)
-      }.fold("")(_ + _)
-    } else {
-      val keys = reader.readNext.toArray;
-      val values = Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).toList
-      def f(l: List[List[String]], i: Int): String = {
-        l match {
-          case h :: t => {
-            h match {
-              case h2 :: t2 :: t3 =>
-                (if (i < h2.toInt)"" else "\t</array>\n" + "\t<array>\n") +
-                (if (hasTitleRow)
-                  "\t<dict>\n" + cell(h.tail, 1, keys) + "\t</dict>\n" + f(t, h2.toInt);
-                else
-                  "\t\t<string>" + t2 + "</string>\n" + f(t, h2.toInt))
-              case _ => "" + f(t, i)
-            }
-          }
-          case Nil => ""
-        }
-      }
-      "\t<array>\n" + f(values, -1) + "\t</array>\n"
+      }.fold("")(_ + _) + "</array>\n"
+    } else if(hasTitleRow){
+      val TupleListList = OptionTA(reader)
+      stringWithTLLList(TupleListList)
+    }
+    else{
+      val TupleListList = OptionA(reader)
+      stringWithSLList(TupleListList)
     }
   }
 
   def createCell(values: List[String], keys: Array[String]) = {
-    "\t<dict>\n" + cell(values, 0, keys) + "\t</dict>\n"
+    "\t<dict>\n" + Cell(values, 0, keys) + "\t</dict>\n"
   }
-  def cell(l: List[String], i: Int, keys: Array[String]): String = {
+  def Cell(l: List[String], i: Int, keys: Array[String]): String = {
     l match {
-      case h :: t => "\t\t<key>" + keys(i) + "</key>\n" + "\t\t<string>" + h + "</string>\n" + cell(t, i + 1, keys)
+      case h :: t => "\t\t<key>" + keys(i) + "</key>\n" + "\t\t<string>" + h + "</string>\n" + Cell(t, i + 1, keys)
       case Nil => ""
     }
   };
@@ -90,5 +75,89 @@ object csv2plist {
     } else {
       ("", false, false);
     }
+  }
+
+  def OptionTA(reader: CSVReader):List[List[List[(String,String)]]] = {
+    val keys = reader.readNext.toList.tail;
+     val values = Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).toList
+    def f(l: List[List[String]], i: Int, m :List[List[(String,String)]], r:List[List[List[(String,String)]]]):List[List[List[(String,String)]]] = {
+        l match {
+          case h :: t => {
+            h match {
+              case h2 :: t2 =>
+                if (i < h2.toInt)
+                  f(t, h2.toInt, cell(t2,keys)::m , r)
+                else
+                  f(t, h2.toInt, cell(t2,keys)::Nil, m.reverse :: r)
+              case _ => f(t, i, m, r)
+            }
+          }
+          case Nil => (m.reverse :: r).reverse
+        }
+      }
+      f(values, -1, Nil, Nil)
+  }
+  def OptionA(reader: CSVReader):List[List[String]] = {
+    reader.readNext
+     val values = Iterator.continually(reader.readNext).takeWhile(_ != null).map(_.toList).toList
+      def f(l: List[List[String]], i: Int, m :List[String], r:List[List[String]]):List[List[String]] = {
+        l match {
+          case h :: t => {
+            h match {
+              case h2 :: t2 :: _ =>
+                if (i < h2.toInt)
+                  f(t, h2.toInt, t2::m , r)
+                else
+                  f(t, h2.toInt, t2::Nil, m.reverse :: r)
+              case _ => f(t, i, m, r)
+            }
+          }
+          case Nil => (m.reverse :: r).reverse
+        }
+      }
+      f(values, -1, Nil, Nil)
+  }
+  def cell(l: List[String], keys: List[String]): List[(String, String)] = {
+    l match {
+      case h :: t =>
+        keys match {
+          case k :: ks =>
+            (k, h) :: cell(t, ks)
+          case Nil => Nil
+        }
+      case Nil => Nil
+    }
+  };
+  def stringWithSLList(l: List[List[String]]): String = {
+    "<array>\n" +
+      l.map(stringWithSList).fold("")((z, n) => z + n) +
+      "</array>\n"
+  }
+  def stringWithTLLList(l: List[List[List[(String, String)]]]): String = {
+    "<array>\n" +
+      l.map(stringWithTLList).fold("")((z, n) => z + n) +
+      "</array>\n"
+  }
+  def stringWithTLList(l: List[List[(String, String)]]): String = {
+    "<array>\n" +
+      l.map(stringWithTList).fold("")((z, n) => z + n) +
+      "</array>\n"
+  }
+  def stringWithSList(l: List[String]): String = {
+    "\t<array>\n" +
+      l.map(stringWithBody).fold("")((z, n) => z + n) +
+      "\t</array>\n"
+  }
+  def stringWithTList(l: List[(String, String)]): String = {
+    "\t<dict>\n" +
+      l.map(stringWithTuple).fold("")((z, n) => z + n) +
+      "\t</dict>\n"
+  }
+  def stringWithBody(s: String): String = {
+    "\t\t<string>" + s + "</string>\n"
+  }
+  def stringWithTuple(t: Tuple2[String, String]): String = {
+    "\t\t<key>" + t._1 + "</key>\n" +
+      "\t\t<string>" + t._2 + "</string>\n"
   }
 }
