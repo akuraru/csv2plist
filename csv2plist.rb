@@ -6,6 +6,8 @@ $hierarchical = 0
 $help = false
 $non = false
 $liner = false
+$fileName = ""
+$ignoreBlank = false
 $/
 
 require 'optparse'
@@ -14,6 +16,7 @@ opt.on("-a [number]", "--array [number]") {|v| $hierarchical = v.to_i }
 opt.on("-l", "--liner") {|v| $liner = true }
 opt.on('-h', '--help') {|v| $help = true }
 opt.on('--none') {|v| $non = true }
+opt.on('-i', '--ignoreBlank') {|v| $ignoreBlank = true }
 opt.on("-f [file]", "--file_name [file]") {|v| $fileName = v}
 
 opt.permute!(ARGV)
@@ -60,6 +63,9 @@ class NSArray < NSObject
   end
   def liner(depth, data, label, hierarch)
     if (label.count == 1) then
+      if ($ignoreBlank) then
+        data = data.reject {|s| s == ""}
+      end
       data.map{|d| NSString.new(depth + 1, d)}
     else
       data.map{|d| NSArray.new(depth + 1, d, [""], hierarch)}
@@ -97,11 +103,14 @@ class NSDictionary < NSObject
     end
   end
   def perse(depth, data, label)
-    label.map{|s| NSKey.new(depth + 1, s)}.zip(data.map{|s| NSString.new(depth + 1, s)})
+    if ($ignoreBlank) then
+        data = data.reject {|s| s == ""}
+    end
+    data.map{|s| NSString.new(depth + 1, s)}.zip(label.map{|s| NSKey.new(depth + 1, s)})
   end
   def to_s
     self.indent() + "<dict>\n" +
-    @type.inject(""){|n,a| n + a.inject(""){|n, s| n + s.to_s}} +
+    @type.inject(""){|n,a| n + a.inject(""){|n, s| s.to_s + n}} +
     self.indent() + "</dict>\n"
   end
   def == (type)
@@ -145,7 +154,11 @@ class CsvToPlist
   end
   def main(file, dir)
     type = self.exchange(self.fileRead(file))
-    fileName = File.basename(file, ".*")
+    fileName = if $fileName == "" then
+      File.basename(file, ".*")
+    else
+      $fileName
+    end
     
     head = "#{dir}#{fileName}.plist"
     FileUtils.mkdir_p(dir) unless FileTest.exist?(dir)
