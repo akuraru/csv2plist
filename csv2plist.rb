@@ -86,12 +86,12 @@ class NSArray < NSObject
     NSArray === type && super(type)
   end
   def to_s
-    if ($ignoreBlank && @type.size != 0) then
+    if ($ignoreBlank && @type.size == 0) then
+      ""
+    else
       self.indent() + "<array>\n" +
       @type.inject(""){|n,a| n + a.to_s} +
       self.indent() + "</array>\n"
-    else
-      ""
     end
   end
 end
@@ -113,12 +113,12 @@ class NSDictionary < NSObject
     data.map{|s| NSString.new(depth + 1, s)}.zip(label.map{|s| NSKey.new(depth + 1, s)})
   end
   def to_s
-    if ($ignoreBlank && @type.size != 0) then
+    if ($ignoreBlank && @type.size == 0) then
+      ""
+    else
       self.indent() + "<dict>\n" +
       @type.inject(""){|n,a| n + a.inject(""){|n, s| s.to_s + n}} +
       self.indent() + "</dict>\n"
-    else
-      ""
     end
   end
   def == (type)
