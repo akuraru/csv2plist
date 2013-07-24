@@ -66,7 +66,13 @@ class NSArray < NSObject
       if ($ignoreBlank) then
         data = data.reject {|s| s == ""}
       end
-      data.map{|d| NSString.new(depth + 1, d)}
+      data.map{|d| 
+        if (Array === d) then
+          NSString.new(depth + 1, d[0])
+        else
+          NSString.new(depth + 1, d)
+        end
+      }
     else
       data.map{|d| NSArray.new(depth + 1, d, [""], hierarch)}
     end
